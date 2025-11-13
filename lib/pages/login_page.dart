@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../pages/register_page.dart';
 import 'medication_list_page.dart';
+import 'help_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -155,7 +156,28 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 
                 const SizedBox(height: 32),
-                
+
+                  const SizedBox(height: 20),
+
+                  // Botão de Ajuda
+                  TextButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const HelpPage()),
+                      );
+                    },
+                    icon: const Icon(Icons.help_outline, size: 18),
+                    label: const Text(
+                      'Precisa de ajuda? Clique aqui',
+                      style: TextStyle(
+                        color: Color(0xFFE91E63),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+
+const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(

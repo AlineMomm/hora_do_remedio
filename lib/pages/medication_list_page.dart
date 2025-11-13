@@ -5,6 +5,7 @@ import '../models/medication_model.dart';
 import 'add_medication_page.dart';
 import 'login_page.dart';
 import 'profile_page.dart';
+import 'help_page.dart';
 
 class MedicationListPage extends StatefulWidget {
   final AuthService authService;
@@ -107,6 +108,16 @@ class _MedicationListPageState extends State<MedicationListPage> {
         backgroundColor: const Color(0xFFE91E63),
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const HelpPage()),
+              );
+            },
+            tooltip: 'Ajuda',
+          ),
           IconButton(
             icon: const Icon(Icons.person),
             onPressed: () {
