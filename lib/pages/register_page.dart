@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import 'login_page.dart';
+import '../pages/login_page.dart';
+import '../pages/medication_list_page.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -15,7 +16,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final AuthService _authService = AuthService(); // Instância direta
+  final AuthService _authService = AuthService(); // Mesma instância
   bool _isLoading = false;
 
   void _register() async {
@@ -33,7 +34,14 @@ class _RegisterPageState extends State<RegisterPage> {
 
         if (!mounted) return;
         
-        _showSuccessDialog();
+        // Navega direto para a lista de medicamentos
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MedicationListPage(authService: _authService),
+          ),
+        );
+        
       } catch (e) {
         if (!mounted) return;
         _showErrorDialog(e.toString());
@@ -43,30 +51,6 @@ class _RegisterPageState extends State<RegisterPage> {
         });
       }
     }
-  }
-
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cadastro Realizado'),
-        content: const Text(
-          'Conta criada com sucesso! Verifique seu e-mail para ativar sua conta.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginPage()),
-              );
-            },
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showErrorDialog(String message) {
@@ -103,7 +87,6 @@ class _RegisterPageState extends State<RegisterPage> {
               children: [
                 const SizedBox(height: 20),
                 
-                // Logo
                 Image.asset(
                   'assets/logo.png',
                   height: 100,
@@ -134,7 +117,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 
                 const SizedBox(height: 30),
                 
-                // Campo Nome
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
@@ -154,7 +136,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 
                 const SizedBox(height: 16),
                 
-                // Campo Email
                 TextFormField(
                   controller: _emailController,
                   decoration: const InputDecoration(
@@ -175,7 +156,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 
                 const SizedBox(height: 16),
                 
-                // Campo Senha
                 TextFormField(
                   controller: _passwordController,
                   decoration: const InputDecoration(
@@ -196,7 +176,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 
                 const SizedBox(height: 16),
                 
-                // Campo Confirmar Senha
                 TextFormField(
                   controller: _confirmPasswordController,
                   decoration: const InputDecoration(
@@ -217,7 +196,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 
                 const SizedBox(height: 32),
                 
-                // Botão Cadastrar
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -237,7 +215,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 
                 const SizedBox(height: 20),
                 
-                // Link para Login
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

@@ -1,45 +1,51 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/medication_model.dart';
 
 class MedicationService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final List<MedicationModel> _medications = [];
+
+  // Construtor privado
+  MedicationService._privateConstructor();
+  
+  // Instância única
+  static final MedicationService _instance = MedicationService._privateConstructor();
+  
+  // Factory constructor
+  factory MedicationService() {
+    return _instance;
+  }
 
   Stream<List<MedicationModel>> getMedications(String userId) {
-    return _firestore
-        .collection('medications')
-        .where('userId', isEqualTo: userId)
-        .orderBy('hour')
-        .orderBy('minute')
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => MedicationModel.fromMap(doc.data()))
-            .toList());
+    // Filtra medicamentos pelo usuário e ordena
+    final userMeds = _medications
+        .where((med) => med.userId == userId)
+        .toList()
+      ..sort((a, b) {
+        if (a.hour != b.hour) return a.hour.compareTo(b.hour);
+        return a.minute.compareTo(b.minute);
+      });
+    
+    print('📋 Medicamentos do usuário $userId: ${userMeds.length}');
+    return Stream.value(userMeds).asBroadcastStream();
   }
 
   Future<void> addMedication(MedicationModel medication) async {
-    await _firestore
-        .collection('medications')
-        .doc(medication.id)
-        .set(medication.toMap());
+    await Future.delayed(const Duration(milliseconds: 300));
+    _medications.add(medication);
+    print('✅ Medicamento adicionado: ${medication.name} às ${medication.formattedTime}');
   }
 
   Future<void> updateMedication(MedicationModel medication) async {
-    await _firestore
-        .collection('medications')
-        .doc(medication.id)
-        .update(medication.toMap());
+    await Future.delayed(const Duration(milliseconds: 300));
+    final index = _medications.indexWhere((m) => m.id == medication.id);
+    if (index != -1) {
+      _medications[index] = medication;
+      print('✅ Medicamento atualizado: ${medication.name}');
+    }
   }
 
   Future<void> deleteMedication(String medicationId) async {
-    await _firestore.collection('medications').doc(medicationId).delete();
-  }
-
-  Future<MedicationModel?> getMedicationById(String medicationId) async {
-    final doc =
-        await _firestore.collection('medications').doc(medicationId).get();
-    if (doc.exists) {
-      return MedicationModel.fromMap(doc.data()!);
-    }
-    return null;
+    await Future.delayed(const Duration(milliseconds: 300));
+    _medications.removeWhere((m) => m.id == medicationId);
+    print('✅ Medicamento excluído: $medicationId');
   }
 }

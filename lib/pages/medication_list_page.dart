@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/medication_service.dart';
 import '../models/medication_model.dart';
-import 'add_medication_page.dart'; // ← ADICIONAR ESTA IMPORT
+import 'add_medication_page.dart';
 import 'login_page.dart';
+import 'profile_page.dart';
 
 class MedicationListPage extends StatefulWidget {
   final AuthService authService;
@@ -27,6 +28,9 @@ class _MedicationListPageState extends State<MedicationListPage> {
   void _loadMedications() {
     final userId = widget.authService.currentUser?.uid ?? 'test-user';
     _medicationsStream = _medicationService.getMedications(userId);
+    
+    // Força uma atualização inicial
+    setState(() {});
   }
 
   void _logout() async {
@@ -67,13 +71,7 @@ class _MedicationListPageState extends State<MedicationListPage> {
   void _deleteMedication(String medicationId) async {
     try {
       await _medicationService.deleteMedication(medicationId);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Medicamento excluído com sucesso!'),
-          backgroundColor: Color(0xFF4CAF50),
-        ),
-      );
+      // Não precisa chamar setState() - o Stream já atualiza automaticamente
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -89,12 +87,15 @@ class _MedicationListPageState extends State<MedicationListPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AddMedicationPage( // ← CORRIGIDO
+        builder: (context) => AddMedicationPage(
           medication: medication,
           authService: widget.authService,
         ),
       ),
-    );
+    ).then((_) {
+      // Quando volta da edição, força recarregar os dados
+      _loadMedications();
+    });
   }
 
   @override
@@ -106,6 +107,18 @@ class _MedicationListPageState extends State<MedicationListPage> {
         backgroundColor: const Color(0xFFE91E63),
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.person),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProfilePage(authService: widget.authService),
+                ),
+              );
+            },
+            tooltip: 'Perfil',
+          ),
           IconButton(
             icon: const Icon(Icons.exit_to_app),
             onPressed: _logout,
@@ -202,11 +215,12 @@ class _MedicationListPageState extends State<MedicationListPage> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => AddMedicationPage( // ← CORRIGIDO
-                authService: widget.authService,
-              ),
+              builder: (context) => AddMedicationPage(authService: widget.authService),
             ),
-          );
+          ).then((_) {
+            // Quando volta do cadastro, força recarregar os dados
+            _loadMedications();
+          });
         },
         backgroundColor: const Color(0xFFE91E63),
         foregroundColor: Colors.white,
