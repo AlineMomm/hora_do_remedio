@@ -27,11 +27,21 @@ class _MedicationListPageState extends State<MedicationListPage> {
   }
 
   void _loadMedications() {
-    final userId = widget.authService.currentUser?.uid ?? 'test-user';
+    final userId = widget.authService.currentUser?.uid;
+    
+    if (userId == null) {
+      print('❌ ERRO: Usuário não está logado!');
+      print('🔍 CurrentUser: ${widget.authService.currentUser}');
+      return;
+    }
+    
+    print('👤 Carregando medicamentos para usuário: $userId');
+    print('📧 Email do usuário: ${widget.authService.currentUser?.email}');
+    
     _medicationsStream = _medicationService.getMedications(userId);
     
-    // Força uma atualização inicial
-    setState(() {});
+    // Debug adicional - verifique se o stream está configurado
+    print('📡 Stream de medicamentos configurado para: $userId');
   }
 
   void _logout() async {
@@ -140,7 +150,14 @@ class _MedicationListPageState extends State<MedicationListPage> {
       body: StreamBuilder<List<MedicationModel>>(
         stream: _medicationsStream,
         builder: (context, snapshot) {
+          print('🔄 StreamBuilder atualizado:');
+          print('📊 ConnectionState: ${snapshot.connectionState}');
+          print('❌ HasError: ${snapshot.hasError}');
+          print('📄 HasData: ${snapshot.hasData}');
+          print('💥 Error: ${snapshot.error}');
+          
           if (snapshot.hasError) {
+            print('💥 ERRO NO STREAMBUILDER: ${snapshot.error}');
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -155,22 +172,49 @@ class _MedicationListPageState extends State<MedicationListPage> {
                     'Erro ao carregar medicamentos',
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Erro: ${snapshot.error}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _loadMedications,
+                    child: const Text('Tentar Novamente'),
+                  ),
                 ],
               ),
             );
           }
 
           if (snapshot.connectionState == ConnectionState.waiting) {
+            print('⏳ StreamBuilder: Carregando...');
             return const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation(Color(0xFFE91E63)),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation(Color(0xFFE91E63)),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Carregando medicamentos...',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Color(0xFFC2185B),
+                    ),
+                  ),
+                ],
               ),
             );
           }
 
           final medications = snapshot.data ?? [];
+          print('📦 Dados recebidos: ${medications.length} medicamentos');
 
           if (medications.isEmpty) {
+            print('📭 Nenhum medicamento encontrado');
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -206,16 +250,30 @@ class _MedicationListPageState extends State<MedicationListPage> {
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.grey),
                   ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AddMedicationPage(authService: widget.authService),
+                        ),
+                      );
+                    },
+                    child: const Text('Adicionar Primeiro Medicamento'),
+                  ),
                 ],
               ),
             );
           }
 
+          print('🎯 Renderizando ${medications.length} medicamentos');
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: medications.length,
             itemBuilder: (context, index) {
               final medication = medications[index];
+              print('🔄 Renderizando medicamento: ${medication.name}');
               return _buildMedicationCard(medication);
             },
           );
@@ -325,6 +383,14 @@ class _MedicationListPageState extends State<MedicationListPage> {
                 ),
               ),
             ],
+            const SizedBox(height: 8),
+            Text(
+              'ID: ${medication.id}',
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey[500],
+              ),
+            ),
           ],
         ),
       ),

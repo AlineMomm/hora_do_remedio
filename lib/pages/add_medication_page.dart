@@ -76,64 +76,68 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
   }
 
   void _saveMedication() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
+  if (_formKey.currentState!.validate()) {
+    setState(() {
+      _isLoading = true;
+    });
 
-      try {
-        final userId = widget.authService.currentUser?.uid;
-        
-        if (userId == null) {
-          throw 'Usuário não autenticado';
-        }
-
-        final medication = MedicationModel(
-          id: _isEditing ? widget.medication!.id : DateTime.now().millisecondsSinceEpoch.toString(),
-          userId: userId,
-          name: _nameController.text.trim(),
-          hour: _selectedTime.hour,
-          minute: _selectedTime.minute,
-          frequency: _selectedFrequency,
-          notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-          createdAt: _isEditing ? widget.medication!.createdAt : DateTime.now(),
-        );
-
-        if (_isEditing) {
-          await _medicationService.updateMedication(medication);
-        } else {
-          await _medicationService.addMedication(medication);
-        }
-
-        if (!mounted) return;
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _isEditing 
-                ? 'Medicamento atualizado com sucesso!'
-                : 'Medicamento cadastrado com sucesso!',
-            ),
-            backgroundColor: const Color(0xFF4CAF50),
-          ),
-        );
-        
-        Navigator.pop(context);
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro: $e'),
-            backgroundColor: const Color(0xFFD32F2F),
-          ),
-        );
-      } finally {
-        setState(() {
-          _isLoading = false;
-        });
+    try {
+      final userId = widget.authService.currentUser?.uid;
+      
+      if (userId == null) {
+        throw 'Usuário não autenticado. Faça login novamente.';
       }
+
+      print('👤 Usuário autenticado: $userId');
+
+      final medication = MedicationModel(
+        id: '', // Vazio - será gerado pelo Firestore
+        userId: userId, // ← CRÍTICO: deve ser o UID do usuário logado
+        name: _nameController.text.trim(),
+        hour: _selectedTime.hour,
+        minute: _selectedTime.minute,
+        frequency: _selectedFrequency,
+        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+        createdAt: DateTime.now(), // Será sobrescrito pelo serverTimestamp
+      );
+
+      print('💊 Preparando para salvar: ${medication.toMap()}');
+
+      if (_isEditing) {
+        await _medicationService.updateMedication(medication);
+      } else {
+        await _medicationService.addMedication(medication);
+      }
+
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Medicamento salvo com sucesso!'),
+          backgroundColor: Color(0xFF4CAF50),
+        ),
+      );
+      
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      
+      print('❌ ERRO NA PÁGINA: $e');
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro: $e'),
+          backgroundColor: const Color(0xFFD32F2F),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {

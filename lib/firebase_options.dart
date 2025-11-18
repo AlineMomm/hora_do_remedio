@@ -27,43 +27,44 @@ class DefaultFirebaseOptions {
     }
   }
 
-  // Configurações genéricas para teste
+  // ✅ SUAS CONFIGURAÇÕES REAIS DO FIREBASE
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: "AIzaSyBdR3k9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q",
-    authDomain: "hora-do-remedio-test.firebaseapp.com",
-    projectId: "hora-do-remedio-test",
-    storageBucket: "hora-do-remedio-test.appspot.com",
-    messagingSenderId: "123456789012",
-    appId: "1:123456789012:web:abcdef123456789",
+    apiKey: "AIzaSyD0tfZX7X-jLugFD_y0XmA8fra5OF7H8aQ",
+    authDomain: "hora-do-remedio-165b3.firebaseapp.com",
+    projectId: "hora-do-remedio-165b3",
+    storageBucket: "hora-do-remedio-165b3.firebasestorage.app",
+    messagingSenderId: "828522686230",
+    appId: "1:828522686230:web:60be81373bcf74e8671237",
   );
 
+  // Para Android/iOS pode manter genérico por enquanto
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: "AIzaSyBdR3k9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q",
-    appId: "1:123456789012:android:abcdef123456789",
-    messagingSenderId: "123456789012",
-    projectId: "hora-do-remedio-test",
+    apiKey: "AIzaSyD0tfZX7X-jLugFD_y0XmA8fra5OF7H8aQ",
+    appId: "1:828522686230:android:60be81373bcf74e8671237",
+    messagingSenderId: "828522686230",
+    projectId: "hora-do-remedio-165b3",
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: "AIzaSyBdR3k9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q",
-    appId: "1:123456789012:ios:abcdef123456789",
-    messagingSenderId: "123456789012",
-    projectId: "hora-do-remedio-test",
+    apiKey: "AIzaSyD0tfZX7X-jLugFD_y0XmA8fra5OF7H8aQ",
+    appId: "1:828522686230:ios:60be81373bcf74e8671237",
+    messagingSenderId: "828522686230",
+    projectId: "hora-do-remedio-165b3",
     iosBundleId: "com.example.horaDoRemedio",
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: "AIzaSyBdR3k9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q",
-    appId: "1:123456789012:ios:abcdef123456789",
-    messagingSenderId: "123456789012",
-    projectId: "hora-do-remedio-test",
+    apiKey: "AIzaSyD0tfZX7X-jLugFD_y0XmA8fra5OF7H8aQ",
+    appId: "1:828522686230:ios:60be81373bcf74e8671237",
+    messagingSenderId: "828522686230",
+    projectId: "hora-do-remedio-165b3",
     iosBundleId: "com.example.horaDoRemedio",
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: "AIzaSyBdR3k9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q9Q",
-    appId: "1:123456789012:web:abcdef123456789",
-    messagingSenderId: "123456789012",
-    projectId: "hora-do-remedio-test",
+    apiKey: "AIzaSyD0tfZX7X-jLugFD_y0XmA8fra5OF7H8aQ",
+    appId: "1:828522686230:web:60be81373bcf74e8671237",
+    messagingSenderId: "828522686230",
+    projectId: "hora-do-remedio-165b3",
   );
 }

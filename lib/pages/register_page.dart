@@ -20,38 +20,43 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _isLoading = false;
 
   void _register() async {
-    if (_formKey.currentState!.validate()) {
+  if (_formKey.currentState!.validate()) {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final user = await _authService.registerWithEmailAndPassword(
+        _nameController.text.trim(),
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+      );
+
+      if (!mounted) return;
+      
+      // ✅ ADICIONE ESTE DEBUG
+      print('🎉 Cadastro bem-sucedido!');
+      print('👤 UID do usuário: ${user?.uid}');
+      print('📧 Email: ${user?.email}');
+      print('🔍 CurrentUser no AuthService: ${_authService.currentUser?.uid}');
+      
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MedicationListPage(authService: _authService),
+        ),
+      );
+      
+    } catch (e) {
+      if (!mounted) return;
+      _showErrorDialog(e.toString());
+    } finally {
       setState(() {
-        _isLoading = true;
+        _isLoading = false;
       });
-
-      try {
-        await _authService.registerWithEmailAndPassword(
-          _nameController.text.trim(),
-          _emailController.text.trim(),
-          _passwordController.text.trim(),
-        );
-
-        if (!mounted) return;
-        
-        // Navega direto para a lista de medicamentos
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MedicationListPage(authService: _authService),
-          ),
-        );
-        
-      } catch (e) {
-        if (!mounted) return;
-        _showErrorDialog(e.toString());
-      } finally {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
   }
+}
 
   void _showErrorDialog(String message) {
     showDialog(

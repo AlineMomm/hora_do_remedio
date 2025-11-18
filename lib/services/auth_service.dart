@@ -1,8 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
   UserModel? currentUser;
 
@@ -14,30 +16,56 @@ class AuthService {
       String name, String email, String password) async {
     try {
       print('🔄 Tentando registrar: $email');
+      print('📝 Nome: $name, Senha: ${'*' * password.length}');
+      
+      // Verifica se o Firebase está inicializado
+      print('🔥 Firebase Auth instance: $_auth');
       
       UserCredential result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
+      print('✅ Usuário criado no Auth: ${result.user?.uid}');
+
       User? user = result.user;
 
       if (user != null) {
-        print('✅ Usuário criado no Firebase: ${user.uid}');
+        print('📝 Criando documento no Firestore...');
         
         currentUser = UserModel(
           uid: user.uid,
           name: name,
           email: email,
         );
-        
-        return currentUser;
+
+        try {
+          await _firestore
+              .collection('users')
+              .doc(user.uid)
+              .set(currentUser!.toMap());
+          
+          print('✅ Perfil salvo no Firestore com sucesso!');
+          return currentUser;
+        } catch (firestoreError) {
+          print('❌ Erro no Firestore: $firestoreError');
+          // Se der erro no Firestore, pelo menos o usuário foi criado no Auth
+          return currentUser;
+        }
       }
       return null;
     } catch (e) {
-      print('❌ Erro no registro: $e');
-      // Se der erro no Firebase, usa fallback local
-      return _registerLocal(name, email, password);
+      print('❌ ERRO COMPLETO NO REGISTRO:');
+      print('❌ Tipo do erro: ${e.runtimeType}');
+      print('❌ Mensagem: $e');
+      
+      if (e is FirebaseAuthException) {
+        print('❌ Código do erro: ${e.code}');
+        print('❌ Mensagem do Firebase: ${e.message}');
+        print('❌ StackTrace: ${e.stackTrace}');
+      }
+      
+      throw 'Erro no cadastro: ${_getErrorMessage(e)}';
     }
   }
 
@@ -54,65 +82,121 @@ class AuthService {
       User? user = result.user;
 
       if (user != null) {
-        print('✅ Usuário logado no Firebase: ${user.uid}');
+        print('✅ Login bem-sucedido no Auth: ${user.uid}');
+        print('📝 Buscando dados no Firestore...');
         
-        currentUser = UserModel(
-          uid: user.uid,
-          name: user.displayName ?? 'Usuário',
-          email: user.email ?? email,
-        );
-        
-        return currentUser;
+        try {
+          DocumentSnapshot userDoc = 
+              await _firestore.collection('users').doc(user.uid).get();
+          
+          if (userDoc.exists) {
+            currentUser = UserModel.fromMap(userDoc.data() as Map<String, dynamic>);
+            print('✅ Perfil carregado do Firestore: ${currentUser!.email}');
+          } else {
+            print('⚠️  Usuário não encontrado no Firestore, criando novo...');
+            currentUser = UserModel(
+              uid: user.uid,
+              name: user.displayName ?? 'Usuário',
+              email: user.email ?? email,
+            );
+            await _firestore
+                .collection('users')
+                .doc(user.uid)
+                .set(currentUser!.toMap());
+            print('✅ Novo perfil criado no Firestore');
+          }
+          
+          return currentUser;
+        } catch (firestoreError) {
+          print('❌ Erro no Firestore durante login: $firestoreError');
+          // Fallback: cria usuário básico
+          currentUser = UserModel(
+            uid: user.uid,
+            name: 'Usuário',
+            email: email,
+          );
+          return currentUser;
+        }
       }
       return null;
     } catch (e) {
-      print('❌ Erro no login Firebase: $e');
-      // Fallback para login local
-      return _loginLocal(email, password);
+      print('❌ ERRO COMPLETO NO LOGIN:');
+      print('❌ Tipo do erro: ${e.runtimeType}');
+      print('❌ Mensagem: $e');
+      
+      if (e is FirebaseAuthException) {
+        print('❌ Código do erro: ${e.code}');
+        print('❌ Mensagem do Firebase: ${e.message}');
+      }
+      
+      throw 'Erro no login: ${_getErrorMessage(e)}';
     }
   }
 
-  // Fallback local para quando Firebase falhar
-  Future<UserModel?> _registerLocal(String name, String email, String password) async {
-    await Future.delayed(const Duration(seconds: 1));
+  String _getErrorMessage(dynamic error) {
+    if (error is FirebaseAuthException) {
+      switch (error.code) {
+        case 'email-already-in-use':
+          return 'Este e-mail já está cadastrado. Tente fazer login.';
+        case 'invalid-email':
+          return 'E-mail inválido. Verifique o formato.';
+        case 'weak-password':
+          return 'Senha muito fraca. Use pelo menos 6 caracteres.';
+        case 'user-not-found':
+          return 'Usuário não encontrado. Verifique o e-mail.';
+        case 'wrong-password':
+          return 'Senha incorreta. Tente novamente.';
+        case 'network-request-failed':
+          return 'Erro de conexão. Verifique sua internet.';
+        case 'too-many-requests':
+          return 'Muitas tentativas. Tente novamente mais tarde.';
+        default:
+          return 'Erro: ${error.message ?? error.code}';
+      }
+    }
     
-    // Simulação de cadastro local
-    currentUser = UserModel(
-      uid: 'local-user-${DateTime.now().millisecondsSinceEpoch}',
-      name: name,
-      email: email,
-    );
+    // Erros genéricos
+    if (error.toString().contains('firebase')) {
+      return 'Erro de conexão com o servidor. Tente novamente.';
+    }
     
-    print('✅ Cadastro local (fallback): $email');
-    return currentUser;
+    return 'Erro: $error';
   }
 
-  Future<UserModel?> _loginLocal(String email, String password) async {
-    await Future.delayed(const Duration(seconds: 1));
-    
-    // Simulação de login local
-    currentUser = UserModel(
-      uid: 'local-user-123',
-      name: 'Usuário Local',
-      email: email,
-    );
-    
-    print('✅ Login local (fallback): $email');
-    return currentUser;
+  Future<void> updateUserProfile(UserModel updatedUser) async {
+    try {
+      await _firestore
+          .collection('users')
+          .doc(updatedUser.uid)
+          .update(updatedUser.toMap());
+      
+      currentUser = updatedUser;
+      print('✅ Perfil atualizado no Firestore: ${updatedUser.name}');
+    } catch (e) {
+      print('❌ Erro ao atualizar perfil: $e');
+      throw 'Erro ao atualizar perfil: $e';
+    }
   }
 
   Future<void> signOut() async {
     try {
       await _auth.signOut();
+      currentUser = null;
+      print('✅ Usuário deslogado');
     } catch (e) {
-      print('❌ Erro no logout Firebase: $e');
+      print('❌ Erro no logout: $e');
+      throw 'Erro ao sair: $e';
     }
-    currentUser = null;
-    print('✅ Usuário deslogado');
   }
 
-  Future<void> updateUserProfile(UserModel updatedUser) async {
-    currentUser = updatedUser;
-    print('✅ Perfil atualizado: ${updatedUser.name}');
-}
+  // Verifica se há usuário logado atualmente
+  Future<bool> isUserLoggedIn() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      print('👤 Usuário já está logado: ${user.email}');
+      return true;
+    }
+    print('👤 Nenhum usuário logado');
+    return false;
+  }
 }
