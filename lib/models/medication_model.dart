@@ -56,4 +56,27 @@ class MedicationModel {
   TimeOfDay get timeOfDay {
     return TimeOfDay(hour: hour, minute: minute);
   }
+
+  // Adicionar método copyWith
+  MedicationModel copyWith({
+    String? id,
+    String? userId,
+    String? name,
+    int? hour,
+    int? minute,
+    String? frequency,
+    String? notes,
+    DateTime? createdAt,
+  }) {
+    return MedicationModel(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      name: name ?? this.name,
+      hour: hour ?? this.hour,
+      minute: minute ?? this.minute,
+      frequency: frequency ?? this.frequency,
+      notes: notes ?? this.notes,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }

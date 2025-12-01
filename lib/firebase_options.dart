@@ -12,15 +12,9 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -33,27 +27,44 @@ class DefaultFirebaseOptions {
     }
   }
 
+  // ✅ SUAS CONFIGURAÇÕES REAIS DO FIREBASE
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'your-api-key',
-    appId: 'your-app-id',
-    messagingSenderId: 'your-sender-id',
-    projectId: 'your-project-id',
-    authDomain: 'your-project.firebaseapp.com',
-    storageBucket: 'your-project.appspot.com',
+    apiKey: "AIzaSyD0tfZX7X-jLugFD_y0XmA8fra5OF7H8aQ",
+    authDomain: "hora-do-remedio-165b3.firebaseapp.com",
+    projectId: "hora-do-remedio-165b3",
+    storageBucket: "hora-do-remedio-165b3.firebasestorage.app",
+    messagingSenderId: "828522686230",
+    appId: "1:828522686230:web:60be81373bcf74e8671237",
   );
 
+  // Para Android/iOS pode manter genérico por enquanto
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'your-api-key',
-    appId: 'your-app-id',
-    messagingSenderId: 'your-sender-id',
-    projectId: 'your-project-id',
+    apiKey: "AIzaSyD0tfZX7X-jLugFD_y0XmA8fra5OF7H8aQ",
+    appId: "1:828522686230:android:60be81373bcf74e8671237",
+    messagingSenderId: "828522686230",
+    projectId: "hora-do-remedio-165b3",
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'your-api-key',
-    appId: 'your-app-id',
-    messagingSenderId: 'your-sender-id',
-    projectId: 'your-project-id',
-    iosBundleId: 'com.example.horaDoRemedio',
+    apiKey: "AIzaSyD0tfZX7X-jLugFD_y0XmA8fra5OF7H8aQ",
+    appId: "1:828522686230:ios:60be81373bcf74e8671237",
+    messagingSenderId: "828522686230",
+    projectId: "hora-do-remedio-165b3",
+    iosBundleId: "com.example.horaDoRemedio",
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: "AIzaSyD0tfZX7X-jLugFD_y0XmA8fra5OF7H8aQ",
+    appId: "1:828522686230:ios:60be81373bcf74e8671237",
+    messagingSenderId: "828522686230",
+    projectId: "hora-do-remedio-165b3",
+    iosBundleId: "com.example.horaDoRemedio",
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: "AIzaSyD0tfZX7X-jLugFD_y0XmA8fra5OF7H8aQ",
+    appId: "1:828522686230:web:60be81373bcf74e8671237",
+    messagingSenderId: "828522686230",
+    projectId: "hora-do-remedio-165b3",
   );
 }

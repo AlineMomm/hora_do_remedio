@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import 'login_page.dart';
+import '../pages/login_page.dart';
+import '../pages/medication_list_page.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -15,59 +16,47 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final AuthService _authService = AuthService(); // Instância direta
+  final AuthService _authService = AuthService(); // Mesma instância
   bool _isLoading = false;
 
   void _register() async {
-    if (_formKey.currentState!.validate()) {
+  if (_formKey.currentState!.validate()) {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final user = await _authService.registerWithEmailAndPassword(
+        _nameController.text.trim(),
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+      );
+
+      if (!mounted) return;
+      
+      // ✅ ADICIONE ESTE DEBUG
+      print('🎉 Cadastro bem-sucedido!');
+      print('👤 UID do usuário: ${user?.uid}');
+      print('📧 Email: ${user?.email}');
+      print('🔍 CurrentUser no AuthService: ${_authService.currentUser?.uid}');
+      
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MedicationListPage(authService: _authService),
+        ),
+      );
+      
+    } catch (e) {
+      if (!mounted) return;
+      _showErrorDialog(e.toString());
+    } finally {
       setState(() {
-        _isLoading = true;
+        _isLoading = false;
       });
-
-      try {
-        await _authService.registerWithEmailAndPassword(
-          _nameController.text.trim(),
-          _emailController.text.trim(),
-          _passwordController.text.trim(),
-        );
-
-        if (!mounted) return;
-        
-        _showSuccessDialog();
-      } catch (e) {
-        if (!mounted) return;
-        _showErrorDialog(e.toString());
-      } finally {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
   }
-
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cadastro Realizado'),
-        content: const Text(
-          'Conta criada com sucesso! Verifique seu e-mail para ativar sua conta.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginPage()),
-              );
-            },
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
+}
 
   void _showErrorDialog(String message) {
     showDialog(
@@ -103,7 +92,6 @@ class _RegisterPageState extends State<RegisterPage> {
               children: [
                 const SizedBox(height: 20),
                 
-                // Logo
                 Image.asset(
                   'assets/logo.png',
                   height: 100,
@@ -134,7 +122,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 
                 const SizedBox(height: 30),
                 
-                // Campo Nome
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
@@ -154,7 +141,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 
                 const SizedBox(height: 16),
                 
-                // Campo Email
                 TextFormField(
                   controller: _emailController,
                   decoration: const InputDecoration(
@@ -175,7 +161,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 
                 const SizedBox(height: 16),
                 
-                // Campo Senha
                 TextFormField(
                   controller: _passwordController,
                   decoration: const InputDecoration(
@@ -196,7 +181,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 
                 const SizedBox(height: 16),
                 
-                // Campo Confirmar Senha
                 TextFormField(
                   controller: _confirmPasswordController,
                   decoration: const InputDecoration(
@@ -217,7 +201,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 
                 const SizedBox(height: 32),
                 
-                // Botão Cadastrar
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -237,7 +220,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 
                 const SizedBox(height: 20),
                 
-                // Link para Login
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

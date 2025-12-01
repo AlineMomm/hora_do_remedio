@@ -5,9 +5,18 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  
+  try {
+    print('🔄 Inicializando Firebase...');
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print('✅ Firebase inicializado com sucesso!');
+  } catch (e) {
+    print('❌ Erro ao inicializar Firebase: $e');
+    print('🔄 Continuando sem Firebase...');
+  }
+  
   runApp(const MyApp());
 }
 
