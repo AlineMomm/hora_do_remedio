@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
-import '../models/user_model.dart';
+import '../services/local_storage_service.dart';
 
 class ProfilePage extends StatefulWidget {
-  final AuthService authService;
-  
-  const ProfilePage({super.key, required this.authService});
+  const ProfilePage({super.key});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -13,7 +10,10 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final _formKey = GlobalKey<FormState>();
+  final LocalStorageService _storage = LocalStorageService();
+  
   late TextEditingController _nameController;
+  late TextEditingController _emailController;
   late TextEditingController _phoneController;
   late TextEditingController _ageController;
   late TextEditingController _bloodTypeController;
@@ -23,69 +23,107 @@ class _ProfilePageState extends State<ProfilePage> {
 
   bool _isEditing = false;
   bool _isLoading = false;
+  
+  // ID do perfil local (fixo)
+  final String _profileId = 'local_profile_001';
 
   @override
   void initState() {
     super.initState();
     _initializeControllers();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Carregar perfil do storage
+      final profile = await _getProfile();
+      
+      _nameController.text = profile['name'] ?? '';
+      _emailController.text = profile['email'] ?? '';
+      _phoneController.text = profile['phone'] ?? '';
+      _ageController.text = profile['age']?.toString() ?? '';
+      _bloodTypeController.text = profile['bloodType'] ?? '';
+      _emergencyNameController.text = profile['emergencyContactName'] ?? '';
+      _emergencyPhoneController.text = profile['emergencyContactPhone'] ?? '';
+      _observationsController.text = profile['observations'] ?? '';
+      
+    } catch (e) {
+      print('❌ Erro ao carregar perfil: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<Map<String, dynamic>> _getProfile() async {
+    final profiles = await _storage.getUsers();
+    return profiles.firstWhere(
+      (p) => p['uid'] == _profileId,
+      orElse: () => {},
+    );
   }
 
   void _initializeControllers() {
-    final user = widget.authService.currentUser;
-    _nameController = TextEditingController(text: user?.name ?? '');
-    _phoneController = TextEditingController(text: user?.phone ?? '');
-    _ageController = TextEditingController(text: user?.age?.toString() ?? '');
-    _bloodTypeController = TextEditingController(text: user?.bloodType ?? '');
-    _emergencyNameController = TextEditingController(text: user?.emergencyContactName ?? '');
-    _emergencyPhoneController = TextEditingController(text: user?.emergencyContactPhone ?? '');
-    _observationsController = TextEditingController(text: user?.observations ?? '');
+    _nameController = TextEditingController();
+    _emailController = TextEditingController();
+    _phoneController = TextEditingController();
+    _ageController = TextEditingController();
+    _bloodTypeController = TextEditingController();
+    _emergencyNameController = TextEditingController();
+    _emergencyPhoneController = TextEditingController();
+    _observationsController = TextEditingController();
   }
 
   void _toggleEdit() {
     setState(() {
       _isEditing = !_isEditing;
       if (!_isEditing) {
-        // Se cancelou a edição, volta os valores originais
-        _initializeControllers();
+        // Se cancelou a edição, recarrega os valores originais
+        _loadProfile();
       }
     });
   }
 
-  void _saveProfile() async {
+  Future<void> _saveProfile() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
       });
 
       try {
-        final currentUser = widget.authService.currentUser;
-        if (currentUser != null) {
-          final updatedUser = currentUser.copyWith(
-            name: _nameController.text.trim(),
-            phone: _phoneController.text.trim(),
-            age: int.tryParse(_ageController.text.trim()),
-            bloodType: _bloodTypeController.text.trim(),
-            emergencyContactName: _emergencyNameController.text.trim(),
-            emergencyContactPhone: _emergencyPhoneController.text.trim(),
-            observations: _observationsController.text.trim(),
-          );
+        final profile = {
+          'uid': _profileId,
+          'name': _nameController.text.trim(),
+          'email': _emailController.text.trim(),
+          'phone': _phoneController.text.trim(),
+          'age': int.tryParse(_ageController.text.trim()),
+          'bloodType': _bloodTypeController.text.trim(),
+          'emergencyContactName': _emergencyNameController.text.trim(),
+          'emergencyContactPhone': _emergencyPhoneController.text.trim(),
+          'observations': _observationsController.text.trim(),
+          'createdAt': DateTime.now().millisecondsSinceEpoch,
+        };
 
-          // Atualiza no serviço (em memória)
-          widget.authService.currentUser = updatedUser;
+        await _storage.saveUser(profile);
 
-          if (!mounted) return;
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Perfil atualizado com sucesso!'),
-              backgroundColor: Color(0xFF4CAF50),
-            ),
-          );
-          
-          setState(() {
-            _isEditing = false;
-          });
-        }
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Perfil atualizado com sucesso!'),
+            backgroundColor: Color(0xFF4CAF50),
+          ),
+        );
+        
+        setState(() {
+          _isEditing = false;
+        });
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -107,17 +145,12 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         CircleAvatar(
           radius: 50,
-          backgroundColor: const Color(0xFFE91E63),
-          backgroundImage: widget.authService.currentUser?.profileImageUrl != null
-              ? NetworkImage(widget.authService.currentUser!.profileImageUrl!)
-              : null,
-          child: widget.authService.currentUser?.profileImageUrl == null
-              ? const Icon(
-                  Icons.person,
-                  size: 50,
-                  color: Colors.white,
-                )
-              : null,
+          backgroundColor: const Color(0xFF1976D2), // Azul
+          child: const Icon(
+            Icons.person,
+            size: 50,
+            color: Colors.white,
+          ),
         ),
         if (_isEditing)
           Positioned(
@@ -125,7 +158,7 @@ class _ProfilePageState extends State<ProfilePage> {
             right: 0,
             child: Container(
               decoration: const BoxDecoration(
-                color: Color(0xFFE91E63),
+                color: Color(0xFF388E3C), // Verde
                 shape: BoxShape.circle,
               ),
               child: IconButton(
@@ -139,7 +172,6 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _changeProfileImage() {
-    // Por enquanto é apenas simulado
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -157,13 +189,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final user = widget.authService.currentUser;
-
     return Scaffold(
-      backgroundColor: const Color(0xFFFCE4EC),
+      backgroundColor: Colors.white, // Fundo branco
       appBar: AppBar(
         title: const Text('Meu Perfil'),
-        backgroundColor: const Color(0xFFE91E63),
+        backgroundColor: const Color(0xFF1976D2), // Azul
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -188,198 +218,227 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              // Foto de Perfil
-              _buildProfileImage(),
-              const SizedBox(height: 20),
-              
-              // Informações Pessoais
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Informações Pessoais',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFC2185B),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // Nome
-                      TextFormField(
-                        controller: _nameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Nome completo',
-                          prefixIcon: Icon(Icons.person),
-                        ),
-                        enabled: _isEditing,
-                        validator: (value) {
-                          if (_isEditing && (value == null || value.isEmpty)) {
-                            return 'Por favor, digite seu nome';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // Email (não editável)
-                      TextFormField(
-                        initialValue: user?.email,
-                        decoration: const InputDecoration(
-                          labelText: 'E-mail',
-                          prefixIcon: Icon(Icons.email),
-                        ),
-                        enabled: false,
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // Telefone
-                      TextFormField(
-                        controller: _phoneController,
-                        decoration: const InputDecoration(
-                          labelText: 'Telefone',
-                          prefixIcon: Icon(Icons.phone),
-                        ),
-                        enabled: _isEditing,
-                        keyboardType: TextInputType.phone,
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // Idade
-                      TextFormField(
-                        controller: _ageController,
-                        decoration: const InputDecoration(
-                          labelText: 'Idade',
-                          prefixIcon: Icon(Icons.cake),
-                        ),
-                        enabled: _isEditing,
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // Tipo Sanguíneo
-                      TextFormField(
-                        controller: _bloodTypeController,
-                        decoration: const InputDecoration(
-                          labelText: 'Tipo Sanguíneo',
-                          prefixIcon: Icon(Icons.bloodtype),
-                        ),
-                        enabled: _isEditing,
-                      ),
-                    ],
+      body: _isLoading
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation(Color(0xFF1976D2)),
                   ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Carregando perfil...',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Color(0xFF212121),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    // Foto de Perfil
+                    _buildProfileImage(),
+                    const SizedBox(height: 20),
+                    
+                    // Informações Pessoais
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Informações Pessoais',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF212121), // Texto escuro
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Nome
+                            TextFormField(
+                              controller: _nameController,
+                              decoration: const InputDecoration(
+                                labelText: 'Nome completo',
+                                prefixIcon: Icon(Icons.person, color: Color(0xFF757575)),
+                              ),
+                              enabled: _isEditing,
+                              validator: (value) {
+                                if (_isEditing && (value == null || value.isEmpty)) {
+                                  return 'Por favor, digite seu nome';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Email
+                            TextFormField(
+                              controller: _emailController,
+                              decoration: const InputDecoration(
+                                labelText: 'E-mail',
+                                prefixIcon: Icon(Icons.email, color: Color(0xFF757575)),
+                              ),
+                              enabled: _isEditing,
+                              keyboardType: TextInputType.emailAddress,
+                              validator: (value) {
+                                if (_isEditing && value != null && value.isNotEmpty) {
+                                  if (!value.contains('@') || !value.contains('.')) {
+                                    return 'Digite um e-mail válido';
+                                  }
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Telefone
+                            TextFormField(
+                              controller: _phoneController,
+                              decoration: const InputDecoration(
+                                labelText: 'Telefone',
+                                prefixIcon: Icon(Icons.phone, color: Color(0xFF757575)),
+                              ),
+                              enabled: _isEditing,
+                              keyboardType: TextInputType.phone,
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Idade
+                            TextFormField(
+                              controller: _ageController,
+                              decoration: const InputDecoration(
+                                labelText: 'Idade',
+                                prefixIcon: Icon(Icons.cake, color: Color(0xFF757575)),
+                              ),
+                              enabled: _isEditing,
+                              keyboardType: TextInputType.number,
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Tipo Sanguíneo
+                            TextFormField(
+                              controller: _bloodTypeController,
+                              decoration: const InputDecoration(
+                                labelText: 'Tipo Sanguíneo',
+                                prefixIcon: Icon(Icons.bloodtype, color: Color(0xFF757575)),
+                              ),
+                              enabled: _isEditing,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 20),
+                    
+                    // Contato de Emergência
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Contato de Emergência',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF212121),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Nome do Contato
+                            TextFormField(
+                              controller: _emergencyNameController,
+                              decoration: const InputDecoration(
+                                labelText: 'Nome do contato',
+                                prefixIcon: Icon(Icons.contact_emergency, color: Color(0xFF757575)),
+                              ),
+                              enabled: _isEditing,
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Telefone do Contato
+                            TextFormField(
+                              controller: _emergencyPhoneController,
+                              decoration: const InputDecoration(
+                                labelText: 'Telefone do contato',
+                                prefixIcon: Icon(Icons.phone, color: Color(0xFF757575)),
+                              ),
+                              enabled: _isEditing,
+                              keyboardType: TextInputType.phone,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 20),
+                    
+                    // Observações
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Observações',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF212121),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            TextFormField(
+                              controller: _observationsController,
+                              decoration: const InputDecoration(
+                                labelText: 'Observações médicas ou alergias',
+                                prefixIcon: Icon(Icons.note, color: Color(0xFF757575)),
+                              ),
+                              enabled: _isEditing,
+                              maxLines: 3,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              
-              const SizedBox(height: 20),
-              
-              // Contato de Emergência
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Contato de Emergência',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFC2185B),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // Nome do Contato
-                      TextFormField(
-                        controller: _emergencyNameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Nome do contato',
-                          prefixIcon: Icon(Icons.contact_emergency),
-                        ),
-                        enabled: _isEditing,
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // Telefone do Contato
-                      TextFormField(
-                        controller: _emergencyPhoneController,
-                        decoration: const InputDecoration(
-                          labelText: 'Telefone do contato',
-                          prefixIcon: Icon(Icons.phone),
-                        ),
-                        enabled: _isEditing,
-                        keyboardType: TextInputType.phone,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // Observações
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Observações',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFC2185B),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      TextFormField(
-                        controller: _observationsController,
-                        decoration: const InputDecoration(
-                          labelText: 'Observações médicas ou alergias',
-                          prefixIcon: Icon(Icons.note),
-                        ),
-                        enabled: _isEditing,
-                        maxLines: 3,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _emailController.dispose();
     _phoneController.dispose();
     _ageController.dispose();
     _bloodTypeController.dispose();

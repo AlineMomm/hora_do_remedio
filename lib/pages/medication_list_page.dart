@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
 import '../services/medication_service.dart';
 import '../models/medication_model.dart';
 import 'add_medication_page.dart';
-import 'login_page.dart';
-import 'profile_page.dart';
 import 'help_page.dart';
+import 'profile_page.dart';
 
 class MedicationListPage extends StatefulWidget {
-  final AuthService authService;
-  
-  const MedicationListPage({super.key, required this.authService});
+  const MedicationListPage({super.key});
 
   @override
   State<MedicationListPage> createState() => _MedicationListPageState();
@@ -18,7 +14,10 @@ class MedicationListPage extends StatefulWidget {
 
 class _MedicationListPageState extends State<MedicationListPage> {
   final MedicationService _medicationService = MedicationService();
-  late Stream<List<MedicationModel>> _medicationsStream;
+  List<MedicationModel> _medications = [];
+  bool _isLoading = true;
+  
+  final String _localUserId = 'local_user_001';
 
   @override
   void initState() {
@@ -26,31 +25,22 @@ class _MedicationListPageState extends State<MedicationListPage> {
     _loadMedications();
   }
 
-  void _loadMedications() {
-    final userId = widget.authService.currentUser?.uid;
-    
-    if (userId == null) {
-      print('❌ ERRO: Usuário não está logado!');
-      print('🔍 CurrentUser: ${widget.authService.currentUser}');
-      return;
+  Future<void> _loadMedications() async {
+    try {
+      final medications = await _medicationService.getMedicationsList(_localUserId);
+      
+      setState(() {
+        _medications = medications;
+        _isLoading = false;
+      });
+      
+      print('📦 Medicamentos carregados: ${medications.length}');
+    } catch (e) {
+      print('❌ Erro ao carregar medicamentos: $e');
+      setState(() {
+        _isLoading = false;
+      });
     }
-    
-    print('👤 Carregando medicamentos para usuário: $userId');
-    print('📧 Email do usuário: ${widget.authService.currentUser?.email}');
-    
-    _medicationsStream = _medicationService.getMedications(userId);
-    
-    // Debug adicional - verifique se o stream está configurado
-    print('📡 Stream de medicamentos configurado para: $userId');
-  }
-
-  void _logout() async {
-    await widget.authService.signOut();
-    
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginPage()),
-    );
   }
 
   void _confirmDeleteMedication(MedicationModel medication) {
@@ -79,12 +69,18 @@ class _MedicationListPageState extends State<MedicationListPage> {
     );
   }
 
-  void _deleteMedication(String medicationId) async {
+  Future<void> _deleteMedication(String medicationId) async {
     try {
       await _medicationService.deleteMedication(medicationId);
-      // Não precisa chamar setState() - o Stream já atualiza automaticamente
+      await _loadMedications();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Medicamento excluído com sucesso!'),
+          backgroundColor: Color(0xFF4CAF50),
+        ),
+      );
     } catch (e) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Erro ao excluir medicamento: $e'),
@@ -100,11 +96,10 @@ class _MedicationListPageState extends State<MedicationListPage> {
       MaterialPageRoute(
         builder: (context) => AddMedicationPage(
           medication: medication,
-          authService: widget.authService,
+          localUserId: _localUserId,
         ),
       ),
     ).then((_) {
-      // Quando volta da edição, força recarregar os dados
       _loadMedications();
     });
   }
@@ -112,186 +107,161 @@ class _MedicationListPageState extends State<MedicationListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFCE4EC),
+      backgroundColor: const Color(0xFFFFFFFF),
       appBar: AppBar(
-        title: const Text('Meus Medicamentos'),
-        backgroundColor: const Color(0xFFE91E63),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const HelpPage()),
-              );
-            },
-            tooltip: 'Ajuda',
+      leading: Container(
+        margin: const EdgeInsets.all(6),
+        child: Image.asset(
+          'assets/logo.png',
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.medical_services,
+                color: Colors.white,
+                size: 24,
+              ),
+            );
+          },
+        ),
+      ),
+      title: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Hora do Remédio',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProfilePage(authService: widget.authService),
-                ),
-              );
-            },
-            tooltip: 'Perfil',
-          ),
-          IconButton(
-            icon: const Icon(Icons.exit_to_app),
-            onPressed: _logout,
-            tooltip: 'Sair',
+          Text(
+            'Cuide da sua saúde',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.normal,
+            ),
           ),
         ],
       ),
-      body: StreamBuilder<List<MedicationModel>>(
-        stream: _medicationsStream,
-        builder: (context, snapshot) {
-          print('🔄 StreamBuilder atualizado:');
-          print('📊 ConnectionState: ${snapshot.connectionState}');
-          print('❌ HasError: ${snapshot.hasError}');
-          print('📄 HasData: ${snapshot.hasData}');
-          print('💥 Error: ${snapshot.error}');
-          
-          if (snapshot.hasError) {
-            print('💥 ERRO NO STREAMBUILDER: ${snapshot.error}');
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Color(0xFFD32F2F),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Erro ao carregar medicamentos',
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Erro: ${snapshot.error}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: _loadMedications,
-                    child: const Text('Tentar Novamente'),
-                  ),
-                ],
-              ),
+      backgroundColor: const Color(0xFF1976D2),
+      foregroundColor: Colors.white,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.help_outline),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const HelpPage()),
             );
-          }
-
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            print('⏳ StreamBuilder: Carregando...');
-            return const Center(
+          },
+          tooltip: 'Ajuda',
+        ),
+        IconButton(
+          icon: const Icon(Icons.person),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ProfilePage()),
+            );
+          },
+          tooltip: 'Perfil',
+        ),
+      ],
+    ),
+      body: _isLoading
+          ? const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation(Color(0xFFE91E63)),
+                    valueColor: AlwaysStoppedAnimation(Color(0xFF1976D2)),
                   ),
                   SizedBox(height: 16),
                   Text(
-                    'Carregando medicamentos...',
+                    'Carregando seus medicamentos...',
                     style: TextStyle(
                       fontSize: 16,
-                      color: Color(0xFFC2185B),
+                      color: Color(0xFF212121),
                     ),
                   ),
                 ],
               ),
-            );
-          }
-
-          final medications = snapshot.data ?? [];
-          print('📦 Dados recebidos: ${medications.length} medicamentos');
-
-          if (medications.isEmpty) {
-            print('📭 Nenhum medicamento encontrado');
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(
-                    'assets/logo.png',
-                    height: 120,
-                    width: 120,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
+            )
+          : _medications.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Logo central também
+                      Image.asset(
+                        'assets/logo.png',
                         height: 120,
                         width: 120,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFE91E63),
-                          shape: BoxShape.circle,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Icon(
+                            Icons.medical_services,
+                            size: 120,
+                            color: Colors.grey[300],
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Nenhum medicamento cadastrado',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF212121),
                         ),
-                        child: const Icon(
-                          Icons.medical_services,
-                          size: 60,
-                          color: Colors.white,
-                        ),
-                      );
-                    },
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Toque no botão + para adicionar seu primeiro medicamento',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => AddMedicationPage(localUserId: _localUserId),
+                            ),
+                          ).then((_) {
+                            _loadMedications();
+                          });
+                        },
+                        child: const Text('Adicionar Primeiro Medicamento'),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Nenhum medicamento cadastrado',
-                    style: Theme.of(context).textTheme.displayMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Toque no botão + para adicionar seu primeiro medicamento',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AddMedicationPage(authService: widget.authService),
-                        ),
-                      );
-                    },
-                    child: const Text('Adicionar Primeiro Medicamento'),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          print('🎯 Renderizando ${medications.length} medicamentos');
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: medications.length,
-            itemBuilder: (context, index) {
-              final medication = medications[index];
-              print('🔄 Renderizando medicamento: ${medication.name}');
-              return _buildMedicationCard(medication);
-            },
-          );
-        },
-      ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _medications.length,
+                  itemBuilder: (context, index) {
+                    final medication = _medications[index];
+                    return _buildMedicationCard(medication);
+                  },
+                ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => AddMedicationPage(authService: widget.authService),
+              builder: (context) => AddMedicationPage(localUserId: _localUserId),
             ),
           ).then((_) {
-            // Quando volta do cadastro, força recarregar os dados
             _loadMedications();
           });
         },
-        backgroundColor: const Color(0xFFE91E63),
+        backgroundColor: const Color(0xFF388E3C),
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
@@ -319,7 +289,7 @@ class _MedicationListPageState extends State<MedicationListPage> {
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFFC2185B),
+                      color: Color(0xFF212121),
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -329,7 +299,7 @@ class _MedicationListPageState extends State<MedicationListPage> {
                     IconButton(
                       icon: const Icon(Icons.edit, size: 20),
                       onPressed: () => _editMedication(medication),
-                      color: const Color(0xFFE91E63),
+                      color: const Color(0xFFF57C00),
                     ),
                     IconButton(
                       icon: const Icon(Icons.delete, size: 20),
@@ -383,14 +353,6 @@ class _MedicationListPageState extends State<MedicationListPage> {
                 ),
               ),
             ],
-            const SizedBox(height: 8),
-            Text(
-              'ID: ${medication.id}',
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.grey[500],
-              ),
-            ),
           ],
         ),
       ),

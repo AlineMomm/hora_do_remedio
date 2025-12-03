@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
 import '../services/medication_service.dart';
 import '../models/medication_model.dart';
 
 class AddMedicationPage extends StatefulWidget {
   final MedicationModel? medication;
-  final AuthService authService;
+  final String localUserId;
   
   const AddMedicationPage({
     super.key, 
     this.medication,
-    required this.authService,
+    required this.localUserId,
   });
 
   @override
@@ -55,17 +54,6 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime,
-      builder: (context, child) {
-        return Theme(
-          data: ThemeData.light().copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFFE91E63),
-              onPrimary: Colors.white,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
     
     if (picked != null && picked != _selectedTime) {
@@ -75,77 +63,65 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
     }
   }
 
-  void _saveMedication() async {
-  if (_formKey.currentState!.validate()) {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final userId = widget.authService.currentUser?.uid;
-      
-      if (userId == null) {
-        throw 'Usuário não autenticado. Faça login novamente.';
-      }
-
-      print('👤 Usuário autenticado: $userId');
-
-      final medication = MedicationModel(
-        id: '', // Vazio - será gerado pelo Firestore
-        userId: userId, // ← CRÍTICO: deve ser o UID do usuário logado
-        name: _nameController.text.trim(),
-        hour: _selectedTime.hour,
-        minute: _selectedTime.minute,
-        frequency: _selectedFrequency,
-        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-        createdAt: DateTime.now(), // Será sobrescrito pelo serverTimestamp
-      );
-
-      print('💊 Preparando para salvar: ${medication.toMap()}');
-
-      if (_isEditing) {
-        await _medicationService.updateMedication(medication);
-      } else {
-        await _medicationService.addMedication(medication);
-      }
-
-      if (!mounted) return;
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Medicamento salvo com sucesso!'),
-          backgroundColor: Color(0xFF4CAF50),
-        ),
-      );
-      
-      Navigator.pop(context);
-    } catch (e) {
-      if (!mounted) return;
-      
-      print('❌ ERRO NA PÁGINA: $e');
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro: $e'),
-          backgroundColor: const Color(0xFFD32F2F),
-          duration: const Duration(seconds: 5),
-        ),
-      );
-    } finally {
+  Future<void> _saveMedication() async {
+    if (_formKey.currentState!.validate()) {
       setState(() {
-        _isLoading = false;
+        _isLoading = true;
       });
+
+      try {
+        final medication = MedicationModel(
+          id: _isEditing ? widget.medication!.id : '',
+          userId: widget.localUserId,
+          name: _nameController.text.trim(),
+          hour: _selectedTime.hour,
+          minute: _selectedTime.minute,
+          frequency: _selectedFrequency,
+          notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+          createdAt: _isEditing ? widget.medication!.createdAt : DateTime.now(),
+        );
+
+        if (_isEditing) {
+          await _medicationService.updateMedication(medication);
+        } else {
+          await _medicationService.addMedication(medication);
+        }
+
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Medicamento salvo com sucesso!'),
+            backgroundColor: Color(0xFF4CAF50),
+          ),
+        );
+        
+        Navigator.pop(context);
+      } catch (e) {
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro: $e'),
+            backgroundColor: const Color(0xFFD32F2F),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      } finally {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFCE4EC),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(_isEditing ? 'Editar Medicamento' : 'Novo Medicamento'),
-        backgroundColor: const Color(0xFFE91E63),
+        backgroundColor: const Color(0xFF1976D2),
         foregroundColor: Colors.white,
       ),
       body: SafeArea(
@@ -155,12 +131,11 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
             key: _formKey,
             child: Column(
               children: [
-                // Campo Nome do Medicamento
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
                     labelText: 'Nome do medicamento*',
-                    prefixIcon: Icon(Icons.medical_services),
+                    prefixIcon: Icon(Icons.medical_services, color: Color(0xFF757575)),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -172,13 +147,12 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
                 
                 const SizedBox(height: 20),
                 
-                // Seletor de Horário
                 InkWell(
                   onTap: _selectTime,
                   child: InputDecorator(
                     decoration: const InputDecoration(
                       labelText: 'Horário*',
-                      prefixIcon: Icon(Icons.access_time),
+                      prefixIcon: Icon(Icons.access_time, color: Color(0xFF757575)),
                       border: OutlineInputBorder(),
                     ),
                     child: Row(
@@ -186,9 +160,9 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
                       children: [
                         Text(
                           _selectedTime.format(context),
-                          style: const TextStyle(fontSize: 16),
+                          style: const TextStyle(fontSize: 16, color: Color(0xFF212121)),
                         ),
-                        const Icon(Icons.arrow_drop_down),
+                        const Icon(Icons.arrow_drop_down, color: Color(0xFF757575)),
                       ],
                     ),
                   ),
@@ -196,17 +170,19 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
                 
                 const SizedBox(height: 20),
                 
-                // Seletor de Frequência
                 DropdownButtonFormField<String>(
                   value: _selectedFrequency,
                   decoration: const InputDecoration(
                     labelText: 'Frequência*',
-                    prefixIcon: Icon(Icons.repeat),
+                    prefixIcon: Icon(Icons.repeat, color: Color(0xFF757575)),
                   ),
                   items: _frequencies.map((String frequency) {
                     return DropdownMenuItem<String>(
                       value: frequency,
-                      child: Text(frequency),
+                      child: Text(
+                        frequency,
+                        style: const TextStyle(color: Color(0xFF212121)),
+                      ),
                     );
                   }).toList(),
                   onChanged: (String? newValue) {
@@ -226,22 +202,23 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
                 
                 const SizedBox(height: 20),
                 
-                // Campo Observações
                 TextFormField(
                   controller: _notesController,
                   decoration: const InputDecoration(
                     labelText: 'Observações (opcional)',
-                    prefixIcon: Icon(Icons.note),
+                    prefixIcon: Icon(Icons.note, color: Color(0xFF757575)),
                   ),
                   maxLines: 3,
                 ),
                 
                 const SizedBox(height: 32),
                 
-                // Botão Salvar
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isEditing ? const Color(0xFFF57C00) : const Color(0xFF388E3C),
+                    ),
                     onPressed: _isLoading ? null : _saveMedication,
                     child: _isLoading
                         ? const SizedBox(

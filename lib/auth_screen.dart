@@ -1,50 +1,59 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'models/user_model.dart';
+import '../models/user_model.dart';
+import '../services/local_storage_service.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
+  final LocalStorageService _storage = LocalStorageService();
   UserModel? currentUser;
 
   AuthService._privateConstructor();
   static final AuthService _instance = AuthService._privateConstructor();
   factory AuthService() => _instance;
 
+  // Gerar ID único
+  String _generateUid() {
+    return DateTime.now().millisecondsSinceEpoch.toString();
+  }
+
   Future<UserModel?> registerWithEmailAndPassword(
       String name, String email, String password) async {
     try {
       print('🔄 Tentando registrar: $email');
       
-      UserCredential result = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      User? user = result.user;
-
-      if (user != null) {
-        print('✅ Usuário criado no Firebase: ${user.uid}');
-        
-        currentUser = UserModel(
-          uid: user.uid,
-          name: name,
-          email: email,
-        );
-
-        await _firestore
-            .collection('users')
-            .doc(user.uid)
-            .set(currentUser!.toMap());
-        
-        print('✅ Perfil salvo no Firestore!');
-        return currentUser;
+      // Verificar se email já existe
+      final existingUser = await _storage.getUserByEmail(email);
+      if (existingUser != null) {
+        throw 'Este e-mail já está cadastrado';
       }
-      return null;
+      
+      // Validar senha
+      if (password.length < 6) {
+        throw 'Senha muito fraca (mínimo 6 caracteres)';
+      }
+      
+      // Validar email
+      if (!email.contains('@') || !email.contains('.')) {
+        throw 'E-mail inválido';
+      }
+      
+      // Criar novo usuário
+      final newUser = UserModel(
+        uid: _generateUid(),
+        name: name,
+        email: email,
+      );
+      
+      // Salvar no storage
+      await _storage.saveUser(newUser.toMap());
+      
+      // Definir como usuário atual
+      currentUser = newUser;
+      await _storage.setCurrentUser(newUser.uid);
+      
+      print('✅ Usuário criado: ${newUser.uid}');
+      return currentUser;
     } catch (e) {
       print('❌ Erro no registro: $e');
-      throw 'Erro no cadastro: ${_getErrorMessage(e)}';
+      throw 'Erro no cadastro: $e';
     }
   }
 
@@ -53,73 +62,56 @@ class AuthService {
     try {
       print('🔄 Tentando login: $email');
       
-      UserCredential result = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      User? user = result.user;
-
-      if (user != null) {
-        print('✅ Login bem-sucedido: ${user.uid}');
-        
-        DocumentSnapshot userDoc = 
-            await _firestore.collection('users').doc(user.uid).get();
-        
-        if (userDoc.exists) {
-          currentUser = UserModel.fromMap(userDoc.data() as Map<String, dynamic>);
-          print('✅ Perfil carregado do Firestore');
-        } else {
-          currentUser = UserModel(
-            uid: user.uid,
-            name: user.displayName ?? 'Usuário',
-            email: user.email ?? email,
-          );
-          await _firestore
-              .collection('users')
-              .doc(user.uid)
-              .set(currentUser!.toMap());
-          print('✅ Novo perfil criado no Firestore');
-        }
-        
-        return currentUser;
+      // Validar email
+      if (!email.contains('@') || !email.contains('.')) {
+        throw 'E-mail inválido';
       }
-      return null;
+      
+      // Buscar usuário pelo email
+      final userData = await _storage.getUserByEmail(email);
+      
+      if (userData == null) {
+        throw 'Usuário não encontrado';
+      }
+      
+      // Converter para UserModel
+      currentUser = UserModel.fromMap(userData);
+      
+      // Definir como usuário atual
+      await _storage.setCurrentUser(currentUser!.uid);
+      
+      print('✅ Login bem-sucedido: ${currentUser!.uid}');
+      return currentUser;
     } catch (e) {
       print('❌ Erro no login: $e');
-      throw 'Erro no login: ${_getErrorMessage(e)}';
+      throw 'Erro no login: $e';
     }
   }
 
   String _getErrorMessage(dynamic error) {
-    if (error is FirebaseAuthException) {
-      switch (error.code) {
-        case 'email-already-in-use':
-          return 'Este e-mail já está cadastrado';
-        case 'invalid-email':
-          return 'E-mail inválido';
-        case 'weak-password':
-          return 'Senha muito fraca (mínimo 6 caracteres)';
-        case 'user-not-found':
-          return 'Usuário não encontrado';
-        case 'wrong-password':
-          return 'Senha incorreta';
-        default:
-          return 'Erro: ${error.message ?? error.code}';
+    if (error is String) {
+      if (error.contains('já está cadastrado')) {
+        return 'Este e-mail já está cadastrado';
       }
+      if (error.contains('inválido')) {
+        return 'E-mail inválido';
+      }
+      if (error.contains('fraca')) {
+        return 'Senha muito fraca (mínimo 6 caracteres)';
+      }
+      if (error.contains('não encontrado')) {
+        return 'Usuário não encontrado';
+      }
+      return error;
     }
     return 'Erro: $error';
   }
 
   Future<void> updateUserProfile(UserModel updatedUser) async {
     try {
-      await _firestore
-          .collection('users')
-          .doc(updatedUser.uid)
-          .update(updatedUser.toMap());
-      
+      await _storage.saveUser(updatedUser.toMap());
       currentUser = updatedUser;
-      print('✅ Perfil atualizado no Firestore');
+      print('✅ Perfil atualizado!');
     } catch (e) {
       print('❌ Erro ao atualizar perfil: $e');
       throw 'Erro ao atualizar perfil: $e';
@@ -127,8 +119,21 @@ class AuthService {
   }
 
   Future<void> signOut() async {
-    await _auth.signOut();
+    await _storage.setCurrentUser(null);
     currentUser = null;
     print('✅ Usuário deslogado');
+  }
+
+  Future<UserModel?> getCurrentUser() async {
+    if (currentUser != null) return currentUser;
+    
+    final userId = await _storage.getCurrentUserId();
+    if (userId == null) return null;
+    
+    final userData = await _storage.getUserById(userId);
+    if (userData == null) return null;
+    
+    currentUser = UserModel.fromMap(userData);
+    return currentUser;
   }
 }

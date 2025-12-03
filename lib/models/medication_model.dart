@@ -21,6 +21,7 @@ class MedicationModel {
     required this.createdAt,
   });
 
+  // Converte para Map (para salvar no SharedPreferences)
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -34,6 +35,7 @@ class MedicationModel {
     };
   }
 
+  // Cria a partir de Map (para ler do SharedPreferences)
   factory MedicationModel.fromMap(Map<String, dynamic> map) {
     return MedicationModel(
       id: map['id'] ?? '',
@@ -43,40 +45,18 @@ class MedicationModel {
       minute: map['minute'] ?? 0,
       frequency: map['frequency'] ?? 'Diário',
       notes: map['notes'],
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt'] ?? 0),
+      createdAt: map['createdAt'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['createdAt'] as int)
+          : DateTime.now(),
     );
   }
 
+  // Métodos auxiliares
+  TimeOfDay get timeOfDay => TimeOfDay(hour: hour, minute: minute);
+  
   String get formattedTime {
-    final hourStr = hour.toString().padLeft(2, '0');
-    final minuteStr = minute.toString().padLeft(2, '0');
-    return '$hourStr:$minuteStr';
-  }
-
-  TimeOfDay get timeOfDay {
-    return TimeOfDay(hour: hour, minute: minute);
-  }
-
-  // Adicionar método copyWith
-  MedicationModel copyWith({
-    String? id,
-    String? userId,
-    String? name,
-    int? hour,
-    int? minute,
-    String? frequency,
-    String? notes,
-    DateTime? createdAt,
-  }) {
-    return MedicationModel(
-      id: id ?? this.id,
-      userId: userId ?? this.userId,
-      name: name ?? this.name,
-      hour: hour ?? this.hour,
-      minute: minute ?? this.minute,
-      frequency: frequency ?? this.frequency,
-      notes: notes ?? this.notes,
-      createdAt: createdAt ?? this.createdAt,
-    );
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final hour12 = hour > 12 ? hour - 12 : hour;
+    return '${hour12.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
   }
 }
