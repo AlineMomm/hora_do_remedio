@@ -10,7 +10,6 @@ O Hora do Remédio é um aplicativo desenvolvido em Flutter para ajudar usuário
 - Interface Acessível
 ## Tecnologias Utilizadas
 - Flutter
-- Firebase Auth
 - Streams
 ## Como Executar
 - Clone o repositório
